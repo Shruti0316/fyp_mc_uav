@@ -60,10 +60,7 @@ class AttentionModel(nn.Module):
         # Problem parameters
         self.num_depots = num_depots
         self.problem = problem
-        self.allow_partial = problem.NAME == 'sdvrp'
-        self.is_vrp = problem.NAME == 'cvrp' or problem.NAME == 'sdvrp'
         self.is_op = problem.NAME == 'op'
-        self.is_pctsp = problem.NAME == 'pctsp'
 
         # Dimensions
         self.embedding_dim = embedding_dim
@@ -91,21 +88,15 @@ class AttentionModel(nn.Module):
             step_context_dim = embedding_dim + 1
 
             # Node dimension
-            if self.is_pctsp:
-                node_dim = 4  # x, y, expected_prize, penalty
-            else:
-                node_dim = 3  # x, y, demand (VRP) / prize (OP)
+            if self.is_op:
+                node_dim = 4 # x,y, prize, obstacle
 
             # Special embedding projection for depot node
             self.init_embed_depot = nn.Linear(2, embedding_dim)
 
-            # Need to include the demand if split delivery allowed
-            if self.is_vrp and self.allow_partial:
-                self.project_node_step = nn.Linear(1, 3 * embedding_dim, bias=False)
-
         # TSP
         else:
-            assert problem.NAME == "tsp", "Unsupported problem: {}".format(problem.NAME)
+            # assert problem.NAME == "tsp", "Unsupported problem: {}".format(problem.NAME)
             step_context_dim = 2 * embedding_dim  # Embedding of first and last node
             node_dim = 2  # x, y
             
@@ -219,13 +210,10 @@ class AttentionModel(nn.Module):
 
         # VRP, OP or PCTSP
         if self.is_vrp or self.is_op or self.is_pctsp:
-            if self.is_vrp:
-                features = ('demand', )
-            elif self.is_op:
+            if self.is_op:
                 features = ('prize', )
             else:
-                assert self.is_pctsp
-                features = ('deterministic_prize', 'penalty')
+                raise AssertionError('Problem is not supported')
             embeddings = (
                         self.init_embed_depot(input['depot'])[:, None, :],
                         self.init_embed(torch.cat((
@@ -406,38 +394,8 @@ class AttentionModel(nn.Module):
         current_node = state.get_current_node()
         batch_size, num_steps = current_node.size()
 
-        # VRP
-        if self.is_vrp:
-
-            # Embedding of previous node + remaining capacity
-            if from_depot:
-                # 1st dimension is node idx, but we do not squeeze it since we want to insert step dimension
-                # i.e. we actually want embeddings[:, 0, :][:, None, :] which is equivalent
-                return torch.cat(
-                    (
-                        embeddings[:, 0:1, :].expand(batch_size, num_steps, embeddings.size(-1)),
-                        # used capacity is 0 after visiting depot
-                        self.problem.VEHICLE_CAPACITY - torch.zeros_like(state.used_capacity[:, :, None])
-                    ),
-                    -1
-                )
-            else:
-                return torch.cat(
-                    (
-                        torch.gather(
-                            embeddings,
-                            1,
-                            current_node.contiguous()
-                                .view(batch_size, num_steps, 1)
-                                .expand(batch_size, num_steps, embeddings.size(-1))
-                        ).view(batch_size, num_steps, embeddings.size(-1)),
-                        self.problem.VEHICLE_CAPACITY - state.used_capacity[:, :, None]
-                    ),
-                    -1
-                )
-
         # OP or PCTSP
-        elif self.is_op or self.is_pctsp:
+        if self.is_op:
             return torch.cat(
                 (
                     torch.gather(
@@ -457,36 +415,8 @@ class AttentionModel(nn.Module):
                 -1
             )
 
-        # TSP
         else:
-
-            # We need to special case if we have only 1 step, may be the first or not
-            if num_steps == 1:
-                if state.i.item() == 0:
-                    # First and only step, ignore prev_a (this is a placeholder)
-                    return self.W_placeholder[None, None, :].expand(batch_size, 1, self.W_placeholder.size(-1))
-                else:
-                    return embeddings.gather(
-                        1,
-                        torch.cat((state.first_a, current_node), 1)[:, :, None].expand(batch_size, 2, embeddings.size(-1))
-                    ).view(batch_size, 1, -1)
-
-            # More than one step, assume always starting with first
-            embeddings_per_step = embeddings.gather(
-                1,
-                current_node[:, 1:, None].expand(batch_size, num_steps - 1, embeddings.size(-1))
-            )
-
-            # Return context embedding
-            return torch.cat((
-                # First step placeholder, cat in dim 1 (time steps)
-                self.W_placeholder[None, None, :].expand(batch_size, 1, self.W_placeholder.size(-1)),
-                # Second step, concatenate embedding of first with embedding of current/previous (in dim 2, context dim)
-                torch.cat((
-                    embeddings_per_step[:, 0:1, :].expand(batch_size, num_steps - 1, embeddings.size(-1)),
-                    embeddings_per_step
-                ), 2)
-            ), 1)
+            raise AssertionError('Problem is not supported')
 
     def _one_to_many_logits(self, query, glimpse_K, glimpse_V, logit_K, mask):
         """Multi-Head Attention mechanism."""
@@ -522,20 +452,6 @@ class AttentionModel(nn.Module):
         return logits, final_Q.squeeze(-2)
 
     def _get_attention_node_data(self, fixed, state):
-        if self.is_vrp and self.allow_partial:
-
-            # Need to provide information of how much each node has already been served
-            # Clone demands as they are needed by the backprop whereas they are updated later
-            glimpse_key_step, glimpse_val_step, logit_key_step = \
-                self.project_node_step(state.demands_with_depot[:, :, :, None].clone()).chunk(3, dim=-1)
-
-            # Projection of concatenation is equivalent to addition of projections but this is more efficient
-            return (
-                fixed.glimpse_key + self._make_heads(glimpse_key_step),
-                fixed.glimpse_val + self._make_heads(glimpse_val_step),
-                fixed.logit_key + logit_key_step,
-            )
-
         # TSP or VRP without split delivery
         return fixed.glimpse_key, fixed.glimpse_val, fixed.logit_key
 
