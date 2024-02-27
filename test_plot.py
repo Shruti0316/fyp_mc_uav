@@ -174,18 +174,11 @@ def baselines(baseline, problem, dataset, device):
                     batch, batch_rep=batch_rep, iter_rep=iter_rep)
                 tour.append([np.insert(np.trim_zeros(pi.cpu().numpy()), 0, 0) for cost, pi in zip(costs, sequences)])
 
-        if problem.NAME == 'tsp':
-            inputs = inputs.detach().numpy().tolist()
-        else:
-            for k, v in inputs.items():
-                inputs[k] = v.detach().numpy().tolist()
-
-    # Lists to numpy arrays
-    if problem.NAME == 'tsp':
-        inputs = np.array(inputs)
-    else:
         for k, v in inputs.items():
-            inputs[k] = np.array(v)
+            inputs[k] = v.detach().numpy().tolist()
+
+    for k, v in inputs.items():
+        inputs[k] = np.array(v)
 
     return np.array(tour).squeeze(), inputs, model_name
 
@@ -425,12 +418,6 @@ def main(opts):
                 inputs_dict[agent] = inp
             plot_multitour(opts.num_agents, tours, inputs_dict, problem.NAME, model_name,
                            data_dist=opts.data_dist)
-        else:
-            tour, inputs, model_name = baselines(opts.baseline, problem, dataset, device)
-
-            # Print/Plot results
-            print(tour)
-            plot_tour(tour, inputs, problem.NAME, model_name)
         return
 
     # Load model (Transformer, PN, GPN) for evaluation on the chosen device
@@ -461,12 +448,8 @@ def main(opts):
                        num_depots=opts.num_depots)
         return
 
-    # TSP
-    elif problem.NAME == 'tsp':
-        inputs = inputs.unsqueeze(0).to(device)
-
-    # VRP, PCTSP and OP (const, dist, unif)
-    else:
+    # OP (const, dist, unif)
+    elif problem.NAME == 'op' and (opts.data_dist == 'const' or opts.data_dist == 'dist' or opts.data_dist == 'unif'):
         for k, v in inputs.items():
             inputs[k] = v.unsqueeze(0).to(device)
 
@@ -475,11 +458,11 @@ def main(opts):
 
     # Torch tensors to numpy
     tour = tour.cpu().detach().numpy().squeeze()
-    if problem.NAME == 'tsp':
-        inputs = inputs.cpu().detach().numpy().squeeze()
-    else:
-        for k, v in inputs.items():
-            inputs[k] = v.cpu().detach().numpy().squeeze()
+    # if problem.NAME == 'tsp':
+    #     inputs = inputs.cpu().detach().numpy().squeeze()
+    # else:
+    for k, v in inputs.items():
+        inputs[k] = v.cpu().detach().numpy().squeeze()
 
     # Print/Plot results
     print(np.insert(tour, 0, 0, axis=0))
