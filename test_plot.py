@@ -74,104 +74,6 @@ def baselines(baseline, problem, dataset, device):
         for k, v in inputs.items():
             inputs[k] = v.detach().numpy().tolist()
 
-    # OR-TOOLS
-    if baseline == 'ortools':
-        from problems.op.op_ortools import solve_op_ortools
-        model_name = 'OR-Tools'
-        _, tour = solve_op_ortools(inputs['depot'], inputs['loc'], inputs['prize'], inputs['max_length'])
-
-    # Genetic Algorithm (GA)
-    elif baseline == 'opga':
-        from problems.op.opga.opevo import run_alg as run_opga_alg
-        model_name = 'GA'
-        _, tour, _ = run_opga_alg(
-            [(*pos, p) for p, pos in zip([0, 0] + inputs['prize'], [inputs['depot'], inputs['depot']] + inputs['loc'])],
-            inputs['max_length'], return_sol=True, verbose=False)
-        tour = np.array(tour, dtype=int)[:-1, 3]
-        tour[1:] = tour[1:] - 1
-
-    # Compass
-    elif baseline == 'compass':
-        from subprocess import check_call
-        from problems.op.op_baseline import write_oplib, read_oplib
-        model_name = 'Compass'
-        name = 'temp'
-        executable = os.path.abspath(os.path.join('problems', 'op', 'compass', 'compass'))
-        problem_filename = os.path.abspath("{}.oplib".format(name))
-        tour_filename = os.path.abspath("{}.tour".format(name))
-        log_filename = os.path.abspath("{}.log".format(name))
-
-        write_oplib(problem_filename, inputs['depot'], inputs['loc'], inputs['prize'], inputs['max_length'], name=name)
-        with open(log_filename, 'w') as f:
-            check_call([executable, '--op', '--op-ea4op', problem_filename, '-o', tour_filename], stdout=f, stderr=f)
-        tour = read_oplib(tour_filename, n=len(inputs['prize']))
-        tour = np.insert(tour, 0, 0)
-
-        os.remove(problem_filename)
-        os.remove(tour_filename)
-        os.remove(log_filename)
-
-    # Gurobi
-    elif baseline == 'gurobi' or baseline == 'gurobigap' or baseline == 'gurobit':
-        import re
-        from problems.op.op_gurobi import solve_euclidian_op as solve_euclidian_op_gurobi
-        model_name = 'Gurobi'
-        match = re.match(r'^([a-z]+)(\d*)$', baseline)
-        assert match
-        method = match[1]
-        runs = 1 if match[2] == '' else int(match[2])
-        cost, tour = solve_euclidian_op_gurobi(
-            inputs['depot'], inputs['loc'], inputs['prize'], inputs['max_length'], threads=1,
-            timeout=runs if method[6:] == "t" else None,
-            gap=float(runs) if method[6:] == "gap" else None
-        )
-
-    # Tsiligirides
-    else:
-        import re
-        from tqdm import tqdm
-        from torch.utils.data import DataLoader
-        from utils import move_to, sample_many
-        from problems.op.tsiligirides import op_tsiligirides
-
-        if baseline == 'tsili':
-            model_name = 'Tsili'
-            sample = False
-            num_samples = 1
-        else:
-            model_name = 'Tsili (greedy)'
-            sample = True
-            match = re.match(r'^([a-z]+)(\d*)$', baseline)
-            assert match
-            runs = 1 if match[2] == '' else int(match[2])
-            num_samples = runs
-
-        max_calc_batch_size = 1000
-        eval_batch_size = max(1, max_calc_batch_size // num_samples)
-
-        dataloader = DataLoader(dataset)
-        tour = []
-        for batch in tqdm(dataloader, mininterval=0.1):
-            batch = move_to(batch, device)
-
-            with torch.no_grad():
-                if num_samples * eval_batch_size > max_calc_batch_size:
-                    assert eval_batch_size == 1
-                    assert num_samples % max_calc_batch_size == 0
-                    batch_rep = max_calc_batch_size
-                    iter_rep = num_samples // max_calc_batch_size
-                else:
-                    batch_rep = num_samples
-                    iter_rep = 1
-                sequences, costs = sample_many(
-                    lambda inp: (None, op_tsiligirides(inp, sample)),
-                    problem.get_costs,
-                    batch, batch_rep=batch_rep, iter_rep=iter_rep)
-                tour.append([np.insert(np.trim_zeros(pi.cpu().numpy()), 0, 0) for cost, pi in zip(costs, sequences)])
-
-        for k, v in inputs.items():
-            inputs[k] = v.detach().numpy().tolist()
-
     for k, v in inputs.items():
         inputs[k] = np.array(v)
 
@@ -321,8 +223,13 @@ def plot_multitour(num_agents, tours, inputs, problem, model_name, data_dist='',
         plt.scatter(depot[0], depot[1], s=200, c=color_depot, marker='^', label='Depot')
         if num_depots > 1:
             plt.scatter(depot2[0], depot2[1], s=200, c=color_depot, marker='v', label='Depot')
-        plt.scatter(loc[prize == 1][..., 0], loc[prize == 1][..., 1], c=color, label='Initial')
-        plt.scatter(loc[prize != 1][..., 0], loc[prize != 1][..., 1], c=color_shared, label='Shared')
+        
+        non_unit_non_obstacle_prize_indices = (prize !=1) & (prize>0)
+        unit_non_obstacle_prize_indices = (prize == 1) & (prize>0)
+        plt.scatter(loc[unit_non_obstacle_prize_indices][..., 0], loc[unit_non_obstacle_prize_indices][..., 1], c=color, label='Initial')
+        plt.scatter(loc[non_unit_non_obstacle_prize_indices][..., 0], loc[non_unit_non_obstacle_prize_indices][..., 1], c=color_shared, label='Shared')
+        plt.scatter(loc[prize < 0][..., 0], loc[prize<0][..., 1], c='red', label='Obstacle')
+
         for l in range(len(loc)):
             plt.text(loc[l, 0] + .005, loc[l, 1] + .005, str(l + 1))
         plt.legend(loc='center left', bbox_to_anchor=(1, 0.9))
