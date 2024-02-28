@@ -88,7 +88,7 @@ class AttentionModel(nn.Module):
             step_context_dim = embedding_dim + 1
 
             # Node dimension
-            node_dim = 4 # x,y, prize, obstacle
+            node_dim = 3 # x,y, prize, obstacle
            
             # Special embedding projection for depot node
             self.init_embed_depot = nn.Linear(2, embedding_dim)
@@ -203,10 +203,7 @@ class AttentionModel(nn.Module):
 
         # VRP, OP or PCTSP
         if self.is_op:
-            print(input['obstacle'])
-
-            
-            features = ('prize', 'obstacle')
+            features = ('prize', )
     
             embeddings = (
                         self.init_embed_depot(input['depot'])[:, None, :],

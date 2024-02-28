@@ -9,8 +9,6 @@ from utils import load_model
 from utils.functions import load_problem
 from utils.data_utils import set_seed, str2bool
 from nets.attention_model import AttentionModel
-from nets.pointer_network import PointerNetwork
-from nets.gpn import GPN
 
 
 def arguments(args=None):
@@ -39,7 +37,7 @@ def arguments(args=None):
     opts.use_cuda = torch.cuda.is_available() and not opts.no_cuda
 
     # Check problem is correct
-    assert opts.problem in ('tsp', 'op'), 'Supported problems are TSP and OP'
+    assert opts.problem in ('op'), 'Supported problems is OP'
     # TODO: add VRP and PCTSP
     assert opts.num_agents > 0, 'num_agents must be greater than 0'
 
@@ -73,11 +71,8 @@ def baselines(baseline, problem, dataset, device):
     # Prepare inputs
     inputs = dataset.data[0]
     if not (baseline == 'tsili' or baseline == 'tsiligreedy'):
-        if problem.NAME == 'tsp':
-            inputs = inputs.detach().numpy().tolist()
-        else:
-            for k, v in inputs.items():
-                inputs[k] = v.detach().numpy().tolist()
+        for k, v in inputs.items():
+            inputs[k] = v.detach().numpy().tolist()
 
     # OR-TOOLS
     if baseline == 'ortools':
@@ -202,11 +197,11 @@ def plot_tour(tour, inputs, problem, model_name, data_dist='', num_depots=1):
     ax.set_ylim([-.05, .05])
 
     # Data
-    depot = inputs[tour[0]] if problem == 'tsp' else inputs['depot']
+    depot = inputs['depot']
     if num_depots > 1:
         depot2 = inputs['depot2']
         plt.scatter(depot2[0], depot2[1], c='r')
-    loc = np.delete(inputs, tour[0], axis=0) if problem == 'tsp' else inputs['loc']
+    loc = inputs['loc']
 
     # Plot nodes (black circles) and depot (red circle)
     plt.scatter(depot[0], depot[1], c='b')
@@ -227,7 +222,7 @@ def plot_tour(tour, inputs, problem, model_name, data_dist='', num_depots=1):
         return
 
     # Calculate the length of the tour
-    loc = np.insert(loc, tour[0], depot, axis=0) if problem == 'tsp' else np.concatenate(([depot], loc), axis=0)
+    loc = np.concatenate(([depot], loc), axis=0)
     if num_depots > 1:
         loc = np.concatenate((loc, [depot2]), axis=0)
     nodes = np.take(loc, tour, axis=0)
@@ -428,11 +423,6 @@ def main(opts):
     model.to(device)
     if isinstance(model, AttentionModel):
         model_name = 'Transformer'
-    elif isinstance(model, PointerNetwork):
-        model_name = 'Pointer'
-    else:
-        assert isinstance(model, GPN), 'Model should be an instance of AttentionModel, PointerNetwork or GPN'
-        model_name = 'GPN'
 
     # OP (coop)
     if problem.NAME == 'op' and (opts.data_dist == 'coop' or opts.data_dist == 'nocoop') and opts.test_coop:
@@ -458,9 +448,6 @@ def main(opts):
 
     # Torch tensors to numpy
     tour = tour.cpu().detach().numpy().squeeze()
-    # if problem.NAME == 'tsp':
-    #     inputs = inputs.cpu().detach().numpy().squeeze()
-    # else:
     for k, v in inputs.items():
         inputs[k] = v.cpu().detach().numpy().squeeze()
 
