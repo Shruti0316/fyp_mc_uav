@@ -82,27 +82,20 @@ class AttentionModel(nn.Module):
         self.mask_logits = mask_logits
 
         # Problem specific context parameters (placeholder and step context dimension)
-        if self.is_vrp or self.is_op or self.is_pctsp:
+        if self.is_op:
 
             # Embedding of last node + remaining_capacity / remaining length / remaining prize to collect
             step_context_dim = embedding_dim + 1
 
             # Node dimension
-            if self.is_op:
-                node_dim = 4 # x,y, prize, obstacle
-
+            node_dim = 4 # x,y, prize, obstacle
+           
             # Special embedding projection for depot node
             self.init_embed_depot = nn.Linear(2, embedding_dim)
 
         # TSP
         else:
-            # assert problem.NAME == "tsp", "Unsupported problem: {}".format(problem.NAME)
-            step_context_dim = 2 * embedding_dim  # Embedding of first and last node
-            node_dim = 2  # x, y
-            
-            # Learned input symbols for first action
-            self.W_placeholder = nn.Parameter(torch.Tensor(2 * embedding_dim))
-            self.W_placeholder.data.uniform_(-1, 1)  # Placeholder should be in range of activations
+            raise AssertionError('Problem is not supported')
 
         # Encoder embeddings
         self.init_embed = nn.Linear(node_dim, embedding_dim)
@@ -209,11 +202,12 @@ class AttentionModel(nn.Module):
         """Embedding for the inputs"""
 
         # VRP, OP or PCTSP
-        if self.is_vrp or self.is_op or self.is_pctsp:
-            if self.is_op:
-                features = ('prize', )
-            else:
-                raise AssertionError('Problem is not supported')
+        if self.is_op:
+            print(input['obstacle'])
+
+            
+            features = ('prize', 'obstacle')
+    
             embeddings = (
                         self.init_embed_depot(input['depot'])[:, None, :],
                         self.init_embed(torch.cat((
@@ -415,9 +409,10 @@ class AttentionModel(nn.Module):
                 -1
             )
 
+        # TSP
         else:
             raise AssertionError('Problem is not supported')
-
+            
     def _one_to_many_logits(self, query, glimpse_K, glimpse_V, logit_K, mask):
         """Multi-Head Attention mechanism."""
 
