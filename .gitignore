@@ -1,4 +1,6 @@
 data
 utils/__pycache__
+problems/__pycache__
+nets/__pycache__
 outputs
 results     
