@@ -88,12 +88,11 @@ class AttentionModel(nn.Module):
             step_context_dim = embedding_dim + 1
 
             # Node dimension
-            node_dim = 3 # x,y, prize, obstacle
+            node_dim = 4 # x,y,z,prize
            
             # Special embedding projection for depot node
-            self.init_embed_depot = nn.Linear(2, embedding_dim)
+            self.init_embed_depot = nn.Linear(3, embedding_dim)
 
-        # TSP
         else:
             raise AssertionError('Problem is not supported')
 
@@ -200,7 +199,8 @@ class AttentionModel(nn.Module):
 
     def _init_embed(self, input):
         """Embedding for the inputs"""
-
+        print(input['loc'])
+        print(input['depot'])
         # VRP, OP or PCTSP
         if self.is_op:
             features = ('prize', )

@@ -23,7 +23,7 @@ Node (OP-MP-TN) with a cooperative multi-agent system based on Transformer Netwo
 
 ## Dependencies
 
-* Python >= 3.8
+* python3 >= 3.8
 * NumPy
 * SciPy
 * [PyTorch](http://pytorch.org/) >= 1.7
@@ -38,9 +38,9 @@ Node (OP-MP-TN) with a cooperative multi-agent system based on Transformer Netwo
 
 First, it is necessary to create training, testing, and validation sets:
 ```bash
-python create_dataset.py --name train --seed 1111 --graph_sizes 20 --dataset_sizes 1280000 --cluster km --num_agents 2 --max_length 2
-python create_dataset.py --name test --seed 1234 --graph_sizes 20 --dataset_sizes 10000 --cluster km --num_agents 2 --max_length 2
-python create_dataset.py --name val --seed 4321 --graph_sizes 20 --dataset_sizes 10000 --cluster km --num_agents 2 --max_length 2
+python3 create_dataset.py --name train --seed 1111 --graph_sizes 20 --dataset_size 1280000 --cluster km --num_agents 2 --max_length 2
+python3 create_dataset.py --name test --seed 1234 --graph_sizes 20 --dataset_size 10000 --cluster km --num_agents 2 --max_length 2
+python3 create_dataset.py --name val --seed 4321 --graph_sizes 20 --dataset_size 10000 --cluster km --num_agents 2 --max_length 2
 ```
 Note that the option `--cluster` defines the type of clustering for the initial planning: K-Means(`km`), K-Means
 constrained(`kmc`), or Fuzzy C-Means(`fcm`). The option `--num_agents` defines the number of agents/clusters. The option
@@ -48,7 +48,7 @@ constrained(`kmc`), or Fuzzy C-Means(`fcm`). The option `--num_agents` defines t
 
 To train a Transformer model (`attention`) use:
 ```bash
-python run.py --model attention --graph_size 20 --max_length 2 --num_agents 2 --cluster km --data_dist coop --baseline rollout --train_dataset data/op/1depots/2agents/coop/km/20/train_seed1111_L2.pkl --val_dataset data/op/1depots/2agents/coop/km/20/val_seed4321_L2.pkl
+python3 run.py --model attention --graph_size 20 --max_length 2 --num_agents 2 --cluster km --data_dist coop --baseline rollout --train_dataset data/op/1depots/2agents/coop/km/20/train_seed1111_L2.pkl --val_dataset data/op/1depots/2agents/coop/km/20/val_seed4321_L2.pkl
 ```
 
 Pointer Network (`pointer`) and Graph Pointer Network (`gpn`) can also be trained with the `--model` option. To resume
@@ -56,7 +56,7 @@ training, load your last saved model with the `--resume` option.
 
 Evaluate your trained models with:
 ```bash
-python eval.py data/op/1depots/2agents/coop/km/20/test_seed1234_L2.pkl --model outputs/op_coop20/attention_run... --num_agents 2
+python3 eval.py data/op/1depots/2agents/coop/km/20/test_seed1234_L2.pkl --model outputs/op_coop20/attention_run... --num_agents 2
 ```
 If the epoch is not specified, by default the last one in the folder will be used.
 
@@ -65,7 +65,7 @@ Baselines like [OR-Tools](https://developers.google.com/optimization), [Gurobi](
 [Compass](https://github.com/bcamath-ds/compass) or a [Genetic Algorithm](https://github.com/mc-ride/orienteering) can
 be executed as follows:
 ```bash
-python -m problems.op.op_baseline --method ortools --multiprocessing True --datasets data/op/1depots/2agents/coop/km/20/test_seed1234_L2.pkl
+python3 -m problems.op.op_baseline --method ortools --multiprocessing True --datasets data/op/1depots/2agents/coop/km/20/test_seed1234_L2.pkl
 ```
 To run Compass, you need to install it by running the `install_compass.sh` script from within the `problems/op`
 directory. To use Gurobi, obtain a ([free academic](http://www.gurobi.com/registration/academic-license-reg)) license
@@ -75,20 +75,20 @@ and follow the
 
 Finally, you can visualize an example of executions using:
 ```bash
-python test_plot.py --graph_size 20 --num_agents 2 --data_dist coop --load_path outputs/op_coop20/attention_run... --test_coop True
+python3 test_plot.py --graph_size 20 --num_agents 2 --data_dist coop --load_path outputs/op_coop20/km/attention_rollout_3agents_20240228T115151 --test_coop True
 ```
 
 Use the `--baseline` option to visualize the prediction of one of the baselines mentioned before:
 ```bash
-python test_plot.py --graph_size 20 --num_agents 2 --data_dist coop --baseline ortools --test_coop True
+python3 test_plot.py --graph_size 20 --num_agents 2 --data_dist coop --baseline ortools --test_coop True
 ```
 
 ### Other options and help
 ```bash
-python run.py -h
-python eval.py -h
-python -m problems.op.op_baseline -h
-python test_plot.py -h
+python3 run.py -h
+python3 eval.py -h
+python3 -m problems.op.op_baseline -h
+python3 test_plot.py -h
 ```
 
 ## Acknowledgements

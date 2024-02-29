@@ -9,8 +9,8 @@ from fcmeans import FCM
 from tqdm import tqdm
 
 def generate_op_data(dataset_size, op_size, max_length, prize_type='const', num_agents=1, num_depots=1, cluster='kmc'):
-    depot = np.random.uniform(size=(dataset_size, 2))
-    loc = np.random.uniform(size=(dataset_size, op_size, 2))
+    depot = np.random.uniform(size=(dataset_size, 3))
+    loc = np.random.uniform(size=(dataset_size, op_size, 3))
 
     # Methods taken from Fischetti et al. 1998
     if prize_type == 'const':

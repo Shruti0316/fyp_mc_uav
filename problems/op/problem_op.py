@@ -88,8 +88,8 @@ class OP(object):
         return beam_search(state, beam_size, propose_expansions)
 
 def generate_instance(size, prize_type, num_agents=1, num_depots=1, max_length=2, cluster='kmc', test_coop=False):
-    loc = torch.FloatTensor(size, 2).uniform_(0, 1)
-    depot = torch.FloatTensor(2).uniform_(0, 1)
+    loc = torch.FloatTensor(size, 3).uniform_(0, 1)
+    depot = torch.FloatTensor(3).uniform_(0, 1)
 
     # Initialize obstacle indices
     num_obstacles = int(0.2 * size)
@@ -149,7 +149,7 @@ def generate_instance(size, prize_type, num_agents=1, num_depots=1, max_length=2
 
     # End depot is different from start depot
     if num_depots == 2:
-        dictionary['depot2'] = torch.FloatTensor(2).uniform_(0, 1)
+        dictionary['depot2'] = torch.FloatTensor(3).uniform_(0, 1)
 
     return dictionary
 
