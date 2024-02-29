@@ -118,7 +118,7 @@ def plot_tour(tour, inputs, problem, model_name, data_dist='', num_depots=1):
         if problem == 'op':
             # Add OP rewards to the title (if problem is OP)
             prize = inputs['prize']
-            title += ' / {:.4g} | Prize = {:.4g} / {:.4g}'.format(inputs['max_length'], 0, np.sum(prize))
+            title += ' / {:.4g} | Prize = {:.4g} / {:.4g}'.format(inputs['max_length'], 0, np.sum(prize[prize>0]))
         ax.set_title(title)
         plt.show()
         return
@@ -138,7 +138,7 @@ def plot_tour(tour, inputs, problem, model_name, data_dist='', num_depots=1):
         # Add OP prize to the title (if problem is OP)
         prize = inputs['prize']
         reward = np.sum(np.take(prize, tour[:-1] - 1))
-        title += ' / {:.4g} | Prize = {:.4g} / {:.4g}'.format(inputs['max_length'], reward, np.sum(prize))
+        title += ' / {:.4g} | Prize = {:.4g} / {:.4g}'.format(inputs['max_length'], reward, np.sum(prize[prize>0]))
     ax.set_title(title)
 
     # Add the start depot at the start of the tour
@@ -251,8 +251,8 @@ def plot_multitour(num_agents, tours, inputs, problem, model_name, data_dist='',
         # Add OP prize to the title
         reward = np.sum(np.take(prize, tour[:-1] - 1))
         prize_sum += reward
-        prize_max += np.sum(prize)
-        info += ' / {:.4g} | Prize = {:.4g} / {:.4g}'.format(max_length, reward, np.sum(prize))
+        prize_max += np.sum(prize[prize > 0])
+        info += ' / {:.4g} | Prize = {:.4g} / {:.4g}'.format(max_length, reward, np.sum(prize[prize>0]))
         plt.title(info)
 
         # Add the start depot and the end depot to the tour
