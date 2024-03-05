@@ -199,8 +199,6 @@ class AttentionModel(nn.Module):
 
     def _init_embed(self, input):
         """Embedding for the inputs"""
-        print(input['loc'])
-        print(input['depot'])
         # VRP, OP or PCTSP
         if self.is_op:
             features = ('prize', )

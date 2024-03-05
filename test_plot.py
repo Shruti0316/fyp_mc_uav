@@ -4,6 +4,7 @@ import random
 import argparse
 import numpy as np
 from matplotlib import pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 from utils import load_model
 from utils.functions import load_problem
@@ -94,20 +95,19 @@ def plot_tour(tour, inputs, problem, model_name, data_dist='', num_depots=1):
     """
 
     # Initialize plot
-    fig, ax = plt.subplots()
-    ax.set_xlim([-.05, .05])
-    ax.set_ylim([-.05, .05])
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
 
     # Data
     depot = inputs['depot']
     if num_depots > 1:
         depot2 = inputs['depot2']
-        plt.scatter(depot2[0], depot2[1], c='r')
+        ax.scatter(depot2[0], depot2[1], depot2[2], c='r')  # z-dimension added
     loc = inputs['loc']
 
     # Plot nodes (black circles) and depot (red circle)
-    plt.scatter(depot[0], depot[1], c='b')
-    plt.scatter(loc[..., 0], loc[..., 1], c='k')
+    ax.scatter(depot[0], depot[1], depot[2], c='b')  # z-dimension added
+    ax.scatter(loc[..., 0], loc[..., 1], loc[..., 2], c='k')  # z-dimension added
 
     # If tour starts and ends in depot
     if len(tour.shape) == 0:
@@ -118,7 +118,7 @@ def plot_tour(tour, inputs, problem, model_name, data_dist='', num_depots=1):
         if problem == 'op':
             # Add OP rewards to the title (if problem is OP)
             prize = inputs['prize']
-            title += ' / {:.4g} | Prize = {:.4g} / {:.4g}'.format(inputs['max_length'], 0, np.sum(prize))
+            title += ' / {:.4g} | Prize = {:.4g} / {:.4g}'.format(inputs['max_length'], 0, np.sum(prize[prize>0]))
         ax.set_title(title)
         plt.show()
         return
@@ -138,7 +138,7 @@ def plot_tour(tour, inputs, problem, model_name, data_dist='', num_depots=1):
         # Add OP prize to the title (if problem is OP)
         prize = inputs['prize']
         reward = np.sum(np.take(prize, tour[:-1] - 1))
-        title += ' / {:.4g} | Prize = {:.4g} / {:.4g}'.format(inputs['max_length'], reward, np.sum(prize))
+        title += ' / {:.4g} | Prize = {:.4g} / {:.4g}'.format(inputs['max_length'], reward, np.sum(prize[prize>0]))
     ax.set_title(title)
 
     # Add the start depot at the start of the tour
@@ -148,8 +148,8 @@ def plot_tour(tour, inputs, problem, model_name, data_dist='', num_depots=1):
     for i in range(1, tour.shape[0]):
         dx = loc[tour[i], 0] - loc[tour[i - 1], 0]
         dy = loc[tour[i], 1] - loc[tour[i - 1], 1]
-        plt.arrow(loc[tour[i - 1], 0], loc[tour[i - 1], 1], dx, dy, head_width=.025, fc='g', ec=None,
-                  length_includes_head=True)
+        dz = loc[tour[i], 2] - loc[tour[i - 1], 2]  # z-dimension added
+        ax.quiver(loc[tour[i - 1], 0], loc[tour[i - 1], 1], loc[tour[i - 1], 2], dx, dy, dz, color='g')
     plt.show()
 
 
@@ -173,11 +173,16 @@ def plot_multitour(num_agents, tours, inputs, problem, model_name, data_dist='',
 
     # Initialize global plots
     fig1 = plt.figure(num_agents)
-    plt.xlim([-.05, 1.05])
-    plt.ylim([-.05, 1.05])
+    ax1 = fig1.add_subplot(111, projection='3d')
+    ax1.set_xlim([-.05, 1.05])
+    ax1.set_ylim([-.05, 1.05])
+    ax1.set_zlim([-.05, 1.05])
+
     fig2 = plt.figure(num_agents + 1)
-    plt.xlim([-.05, 1.05])
-    plt.ylim([-.05, 1.05])
+    ax2 = fig2.add_subplot(111, projection='3d')
+    ax2.set_xlim([-.05, 1.05])
+    ax2.set_ylim([-.05, 1.05])
+    ax2.set_zlim([-.05, 1.05])
 
     # Assign a color to each agent
     colors = assign_colors(num_agents + 2)
@@ -192,8 +197,10 @@ def plot_multitour(num_agents, tours, inputs, problem, model_name, data_dist='',
 
         # Initialize individual plots
         fig = plt.figure(agent)
-        plt.xlim([-.05, 1.05])
-        plt.ylim([-.05, 1.05])
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_xlim([-.05, 1.05])
+        ax.set_ylim([-.05, 1.05])
+        ax.set_zlim([-.05, 1.05])
 
         # Data
         loc = inputs[agent]['loc']
@@ -204,36 +211,34 @@ def plot_multitour(num_agents, tours, inputs, problem, model_name, data_dist='',
         max_length = inputs[agent]['max_length']
 
         # Plot region assignment
-        plt.figure(num_agents + 1)
-        plt.scatter(loc[prize == 1][..., 0], loc[prize == 1][..., 1], c=color, label='Agent {}'.format(agent))
-        plt.scatter(depot[0], depot[1], s=200, c=color_depot, marker='^', label='Depot' if agent == 0 else '')
+        ax2.scatter(loc[prize == 1][..., 0], loc[prize == 1][..., 1], loc[prize == 1][..., 2], c=color, label='Agent {}'.format(agent))
+        ax2.scatter(depot[0], depot[1], depot[2], s=200, c=color_depot, marker='^', label='Depot' if agent == 0 else '')
         if num_depots > 1:
-            plt.scatter(depot2[0], depot2[1], s=200, c=color_depot, marker='v', label='Depot' if agent == 0 else '')
+            ax2.scatter(depot2[0], depot2[1], depot2[2], s=200, c=color_depot, marker='v', label='Depot' if agent == 0 else '')
 
         # Plot regions
-        plt.figure(num_agents)
-        plt.scatter(loc[prize == 1][..., 0], loc[prize == 1][..., 1], c=color, label='Agent {}'.format(agent))
-        plt.scatter(depot[0], depot[1], s=200, c=color_depot, marker='^', label='Depot' if agent == 0 else '')
+        ax1.scatter(loc[prize == 1][..., 0], loc[prize == 1][..., 1], loc[prize == 1][..., 2], c=color, label='Agent {}'.format(agent))
+        ax1.scatter(depot[0], depot[1], depot[2], s=200, c=color_depot, marker='^', label='Depot' if agent == 0 else '')
         if num_depots > 1:
-            plt.scatter(depot2[0], depot2[1], s=200, c=color_depot, marker='v', label='Depot' if agent == 0 else '')
+            ax1.scatter(depot2[0], depot2[1], depot2[2], s=200, c=color_depot, marker='v', label='Depot' if agent == 0 else '')
         if agent == 0:
             for l in range(len(loc)):
-                plt.text(loc[l, 0] + .005, loc[l, 1] + .005, str(l + 1))
-        plt.figure(agent)
-        plt.scatter(depot[0], depot[1], s=200, c=color_depot, marker='^', label='Depot')
+                ax1.text(loc[l, 0] + .005, loc[l, 1] + .005, loc[l, 2] + .005, str(l + 1))
+        
+        ax.scatter(depot[0], depot[1], s=200, c=color_depot, marker='^', label='Depot')
         if num_depots > 1:
-            plt.scatter(depot2[0], depot2[1], s=200, c=color_depot, marker='v', label='Depot')
+            ax.scatter(depot2[0], depot2[1], s=200, c=color_depot, marker='v', label='Depot')
         
         non_unit_non_obstacle_prize_indices = (prize !=1) & (prize>0)
         unit_non_obstacle_prize_indices = (prize == 1) & (prize>0)
-        plt.scatter(loc[unit_non_obstacle_prize_indices][..., 0], loc[unit_non_obstacle_prize_indices][..., 1], c=color, label='Initial')
-        plt.scatter(loc[non_unit_non_obstacle_prize_indices][..., 0], loc[non_unit_non_obstacle_prize_indices][..., 1], c=color_shared, label='Shared')
-        plt.scatter(loc[prize < 0][..., 0], loc[prize<0][..., 1], c='red', label='Obstacle')
+        ax.scatter(loc[unit_non_obstacle_prize_indices][..., 0], loc[unit_non_obstacle_prize_indices][..., 1], loc[unit_non_obstacle_prize_indices][..., 2], c=color, label='Initial')
+        ax.scatter(loc[non_unit_non_obstacle_prize_indices][..., 0], loc[non_unit_non_obstacle_prize_indices][..., 1], loc[non_unit_non_obstacle_prize_indices][..., 2], c=color_shared, label='Shared')
+        ax.scatter(loc[prize < 0][..., 0], loc[prize<0][..., 1], loc[prize<0][..., 2], c='red', label='Obstacle')
 
         for l in range(len(loc)):
-            plt.text(loc[l, 0] + .005, loc[l, 1] + .005, str(l + 1))
-        plt.legend(loc='center left', bbox_to_anchor=(1, 0.9))
-        plt.tight_layout(rect=[0, 0, 1, 0.95])
+            ax.text(loc[l, 0] + .005, loc[l, 1] + .005, loc[l, 2] + .005, str(l + 1))
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.9))
+        # ax.tight_layout(rect=[0, 0, 1, 0.95])
 
         # Calculate the length of the tour
         loc = np.concatenate(([depot], loc), axis=0)
@@ -251,8 +256,8 @@ def plot_multitour(num_agents, tours, inputs, problem, model_name, data_dist='',
         # Add OP prize to the title
         reward = np.sum(np.take(prize, tour[:-1] - 1))
         prize_sum += reward
-        prize_max += np.sum(prize)
-        info += ' / {:.4g} | Prize = {:.4g} / {:.4g}'.format(max_length, reward, np.sum(prize))
+        prize_max += np.sum(prize[prize>0])
+        info += ' / {:.4g} | Prize = {:.4g} / {:.4g}'.format(max_length, reward, np.sum(prize[prize>0]))
         plt.title(info)
 
         # Add the start depot and the end depot to the tour
@@ -266,19 +271,22 @@ def plot_multitour(num_agents, tours, inputs, problem, model_name, data_dist='',
         for i in range(1, tour.shape[0]):
             dx = loc[tour[i], 0] - loc[tour[i - 1], 0]
             dy = loc[tour[i], 1] - loc[tour[i - 1], 1]
-            plt.figure(agent)
-            plt.arrow(loc[tour[i - 1], 0], loc[tour[i - 1], 1], dx, dy, head_width=.025, fc=color, ec=color,
-                      length_includes_head=True, alpha=0.5)
-            plt.figure(num_agents)
-            plt.arrow(loc[tour[i - 1], 0], loc[tour[i - 1], 1], dx, dy, head_width=.025, fc=color, ec=color,
-                      length_includes_head=True, alpha=0.5)
+            dz = loc[tour[i], 2] - loc[tour[i - 1], 2]
+            # plt.figure(agent)
+            ax.quiver(loc[tour[i - 1], 0], loc[tour[i - 1], 1], loc[tour[i - 1], 2], dx, dy, dz, color=color, length=0.1)
+            ax1.quiver(loc[tour[i - 1], 0], loc[tour[i - 1], 1], loc[tour[i - 1], 2], dx, dy, dz, color=color, length=0.1)
+            # ax.arrow(loc[tour[i - 1], 0], loc[tour[i - 1], 1], loc[tour[i - 1], 2], dx, dy, dz, head_width=.025, fc=color, ec=color,
+                    #   length_includes_head=True, alpha=0.5)
+            # ax.figure(num_agents)
+            # ax1.arrow(loc[tour[i - 1], 0], loc[tour[i - 1], 1], loc[tour[i - 1], 2], dx, dy, dz, head_width=.025, fc=color, ec=color,
+                    #   length_includes_head=True, alpha=0.5)
         fig.savefig(image_dir + '/agent_{}.png'.format(agent), dpi=150)
 
     # Plot region assignment
-    plt.figure(num_agents + 1)
-    plt.title('Region assignment')
-    plt.legend(loc='center left', bbox_to_anchor=(1, 0.85))
-    plt.tight_layout(rect=[0.05, 0, 1, 1])
+    # plt.figure(num_agents + 1)
+    ax2.set_title('Region assignment')
+    ax2.legend(loc='center left', bbox_to_anchor=(1, 0.85))
+    fig2.tight_layout(rect=[0.05, 0, 1, 1])
     fig2.savefig(image_dir + '/assignment.png', dpi=150)
 
     # Agents information
@@ -286,10 +294,10 @@ def plot_multitour(num_agents, tours, inputs, problem, model_name, data_dist='',
     info += ' (' + data_dist.lower() + ')' if len(data_dist) > 0 else ''
     info += ' - {:s}: Av. Length = {:.3g}'.format(model_name, length_sum / num_agents)
     info += ' / {:.3g} | Total Prize = {:.3g} / {:.3g}'.format(inputs[0]['max_length'], prize_sum, np.sum(prize_max))
-    plt.figure(num_agents)
-    plt.title(info)
-    plt.legend(loc='center left', bbox_to_anchor=(1, 0.85))
-    plt.tight_layout(rect=[0.05, 0, 1, 1])
+    # plt.figure(num_agents)
+    ax1.set_title(info)
+    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.85))
+    fig1.tight_layout(rect=[0.05, 0, 1, 1])
     fig1.savefig(image_dir + '/solution.png', dpi=150)
     plt.show()
 

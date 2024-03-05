@@ -75,7 +75,7 @@ and follow the
 
 Finally, you can visualize an example of executions using:
 ```bash
-python3 test_plot.py --graph_size 20 --num_agents 2 --data_dist coop --load_path outputs/op_coop20/km/attention_rollout_3agents_20240228T115151 --test_coop True
+python3 test_plot.py --graph_size 20 --num_agents 2 --data_dist coop --load_path outputs/op_coop20/km/attention_rollout_2agents_20240305T122127 --test_coop True
 ```
 
 Use the `--baseline` option to visualize the prediction of one of the baselines mentioned before:
