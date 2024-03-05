@@ -11,14 +11,9 @@ import torch.nn.functional as F
 
 
 def load_problem(name):
-    from problems import TSP, CVRP, SDVRP, OP, PCTSPDet, PCTSPStoch
+    from problems import OP
     problem = {
-        'tsp': TSP,
-        'cvrp': CVRP,
-        'sdvrp': SDVRP,
         'op': OP,
-        'pctsp_det': PCTSPDet,
-        'pctsp_stoch': PCTSPStoch,
     }.get(name, None)
     assert problem is not None, "Currently unsupported problem: {}!".format(name)
     return problem
@@ -78,8 +73,6 @@ def load_args(filename):
 
 def load_model(path, epoch=None):
     from nets.attention_model import AttentionModel
-    from nets.pointer_network import PointerNetwork
-    from nets.gpn import GPN
 
     if os.path.isfile(path):
         model_filename = path
@@ -101,8 +94,6 @@ def load_model(path, epoch=None):
 
     model_class = {
         'attention': AttentionModel,
-        'pointer': PointerNetwork,
-        'gpn': GPN
     }.get(args.get('model', 'attention'), None)
     assert model_class is not None, "Unknown model: {}".format(model_class)
 

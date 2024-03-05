@@ -8,13 +8,10 @@ import torch.optim as optim
 from tensorboard_logger import Logger as TbLogger  # pip install protobuf==3.20.*
 
 from utils.reinforce_baselines import NoBaseline, ExponentialBaseline, CriticBaseline, RolloutBaseline, WarmupBaseline
-from nets.pointer_network import PointerNetwork, CriticNetworkLSTM
 from utils.train import train_epoch, validate, get_inner_model
 from nets.attention_model import AttentionModel
 from utils import torch_load_cpu, load_problem
-from nets.critic_network import CriticNetwork
 from utils.options import get_options
-from nets.gpn import GPN
 
 
 def run(opts):
@@ -60,8 +57,6 @@ def run(opts):
     # Load model
     model_class = {
         'attention': AttentionModel,
-        'pointer': PointerNetwork,
-        'gpn': GPN
     }.get(opts.model, None)
     assert model_class is not None, "Unknown model: {}".format(model_class)
     model = model_class(
@@ -90,29 +85,7 @@ def run(opts):
     # Load baseline
     if opts.baseline == 'exponential':
         baseline = ExponentialBaseline(opts.exp_beta)
-    elif opts.baseline == 'critic' or opts.baseline == 'critic_lstm':
-        assert problem.NAME == 'tsp', "Critic only supported for TSP"
-        baseline = CriticBaseline(
-            (
-                CriticNetworkLSTM(
-                    2,
-                    opts.embedding_dim,
-                    opts.hidden_dim,
-                    opts.n_encode_layers,
-                    opts.tanh_clipping
-                )
-                if opts.baseline == 'critic_lstm'
-                else
-                CriticNetwork(
-                    2,
-                    opts.embedding_dim,
-                    opts.hidden_dim,
-                    opts.n_encode_layers,
-                    opts.normalization
-                )
-            ).to(opts.device)
-        )
-    elif opts.baseline == 'rollout':
+    if opts.baseline == 'rollout':
         baseline = RolloutBaseline(model, problem, opts)
     else:
         assert opts.baseline is None, "Unknown baseline: {}".format(opts.baseline)

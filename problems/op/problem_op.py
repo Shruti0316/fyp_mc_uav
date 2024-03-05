@@ -92,6 +92,10 @@ def generate_instance(size, prize_type, num_agents=1, num_depots=1, max_length=2
     loc = torch.FloatTensor(size, 2).uniform_(0, 1)
     depot = torch.FloatTensor(2).uniform_(0, 1)
 
+    # Initialize obstacle indices
+    num_obstacles = int(0.2 * size)
+    obstacle_indices = np.random.choice(size, size=num_obstacles, replace=False)
+    
     # Methods taken from Fischetti et al. 1998
     if prize_type == 'const':
         prize = torch.ones(size)
@@ -123,16 +127,23 @@ def generate_instance(size, prize_type, num_agents=1, num_depots=1, max_length=2
             for i in range(num_agents):
                 prize = torch.ones(labels.shape)
                 prize[labels != i] = 0.5 if prize_type == 'coop' else 0
-                agents[i] = {'loc': loc, 'prize': prize, 'depot': depot, 'max_length': torch.tensor(max_length)}
+                for idx in obstacle_indices:
+                    prize[idx]=-100
+                agents[i] = {'loc': loc, 'prize': prize, 'depot': depot, 
+                             'max_length': torch.tensor(max_length)}
             return agents
         else:
             prize = torch.ones(labels.shape)
             prize[labels != np.random.randint(low=0, high=num_agents, size=1)[0]] = .5 if prize_type == 'coop' else 0
+            for idx in obstacle_indices:
+                prize[idx]=-100
 
     else:  # Based on distance to depot
         assert prize_type == 'dist'
         prize_ = (depot[None, :] - loc).norm(p=2, dim=-1)
         prize = (1 + (prize_ / prize_.max(dim=-1, keepdim=True)[0] * 99).int()).float() / 100.
+        for idx in obstacle_indices:
+            prize[idx]=-100
 
     # Output dataset
     dictionary = {'loc': loc, 'prize': prize, 'depot': depot, 'max_length': torch.tensor(max_length)}
